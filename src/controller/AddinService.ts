@@ -12,6 +12,7 @@ export class AddinService {
   public _statusid: string = '17216dcb-35ca-4675-8838-818ac63fdc30';
   public _caselibraryid: string = '1915c903-0f25-4435-962a-3014eedfe2ef';
   public _outlookemailsid: string = 'de692daf-26ef-4489-b83b-19f4fc83af27';
+  public _casedriveid:string='b!HQciseR9TEyvXyK7-eL2DEEg8eS76CtEmIrZT4djMw8DyRUZJQ81RJYqMBTu3-Lv';
   public _mail: any;
   private _mailmessage:string;
   public _mailsubject:string;
@@ -24,15 +25,12 @@ export class AddinService {
     graphFactory.getClient().then((client:MSGraphClient)=>{
       this._graphclient=client;
     });
-    //console.log("Email: ", this._mail);
+    console.log("Email: ", this._mail);
     mail.body.getAsync('text', (result)=> {
       if (result.status === 'succeeded') {
         this._mailmessage=result.value;
       }
     });
-
-    
-
   }
 
   public getRootSite(): Promise<any> {
@@ -212,7 +210,6 @@ export class AddinService {
   }
   ///sites/xRMLite/_api/Web/GetFolderByServerRelativePath(decodedurl='/sites/xRMLite/CaseFiles/1')/Folders?&$select=Name
   public getCaseSubFolders(folderrelativepath?: string): Promise<any> {
-    debugger;
     const casefoldersurl = `${this._weburl}_api/Web/GetFolderByServerRelativePath(decodedurl='${this._casefolderrelativepath}/${folderrelativepath}')/Folders?&$select=Name`;
     const options: ISPHttpClientOptions = {
       headers: {
@@ -279,31 +276,40 @@ export class AddinService {
       });
   }
 
-  public saveAttachment(relativepath:string,filename:string,filecontent:any):Promise<any>{
-    const addemailurl: string = `${this._weburl}_api/Web/GetFolderByServerRelativePath('/sites/xRMLite/CaseFiles/1')/Files/add(overwrite=true,url='${filename}')`;
-    const httpclientoptions: ISPHttpClientOptions = {
-      body: atob(filecontent)
-    };
+  // public saveAttachment(relativepath:string,filename:string,filecontent:any):Promise<any>{
+  //   // const addemailurl: string = `${this._weburl}_api/Web/GetFolderByServerRelativePath('/sites/xRMLite/CaseFiles/1')/Files/add(overwrite=true,url='${filename}')`;
+  //   // const httpclientoptions: ISPHttpClientOptions = {
+  //   //   body: atob(filecontent)
+  //   // };
 
-    return this._spclient.post(addemailurl, SPHttpClient.configurations.v1, httpclientoptions)
-      .then((response: SPHttpClientResponse) => {
-        if (response.status >= 200 && response.status < 300) {
-          return response.status;
-        }
-        else { return Promise.reject(new Error(JSON.stringify(response))); }
-      });
-  }
+  //   // return this._spclient.post(addemailurl, SPHttpClient.configurations.v1, httpclientoptions)
+  //   //   .then((response: SPHttpClientResponse) => {
+  //   //     if (response.status >= 200 && response.status < 300) {
+  //   //       return response.status;
+  //   //     }
+  //   //     else { return Promise.reject(new Error(JSON.stringify(response))); }
+  //   //   });
+  //   // let web=new Web(this._weburl);
+  //   // return web.getFolderByServerRelativeUrl("CaseFiles/1").files.add(filename,atob(filecontent),true).then((result)=>{
+  //   //   return result;
+  //   // });
+  // }
 
-  public getAttachments():void{
-
-      // get information about the current user from the Microsoft Graph
-      this._graphclient.api(`/me/messages/${this._mail.itemId}/attachments`).get((error, response: any, rawResponse?: any) => {
-          debugger;
-          console.log("Graph Response ",response);
-          response.value.forEach((file)=>{
-            this.saveAttachment("",file.name,file.contentBytes);
-          });
-      });
+  public saveAttachments(folderpath:string):void{
+    let attachments:any[]=this._mail.attachments;
+    const mailid=this._mail.itemId;
+    attachments.forEach((x)=>{
+      this._graphclient.api(`/me/messages/${mailid}/attachments/${x.id}`).get((error, response: any, rawResponse?: any) => {
+        const data = atob(response.contentBytes);
+        const array = Uint8Array.from(data, b => b.charCodeAt(0));
+        this._graphclient.api(`drives/${this._casedriveid}/root:/${folderpath}/${x.name}:/content`).put(array).then((result)=>{
+          console.log(result);
+          
+        }).catch((ex)=>{
+          console.log(ex);
+        });
+    });
+    });
   }
 
   private buildAddressString(addresses): string {
@@ -337,5 +343,21 @@ export class AddinService {
     
     
   }
+
+  private base64ToBinary (base64EncodedFile) {
+    console.log("entry1");
+    var BASE64_MARKER = ';base64,';
+    var base64Index = base64EncodedFile.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+    var base64 = base64EncodedFile.substring(base64Index);
+    var raw = atob(base64);
+    var rawLength = raw.length;
+    var array = new Uint8Array(rawLength);
+
+    for (let i = 0; i < rawLength; i++)
+    {
+        array[i] = raw.charCodeAt(i);
+    }
+    return array.buffer;
+}
 
 }

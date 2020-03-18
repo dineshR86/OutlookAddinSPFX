@@ -6,19 +6,21 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { AddinCompose } from './AddinCompose';
 import { AddinRead } from './AddinRead';
 import { MSGraphClientFactory } from '@microsoft/sp-http';
+import { Spinner } from 'office-ui-fabric-react/lib/Spinner';
 
 export interface IOutlook2SharePointProps {
   mail: any;
-  context:WebPartContext;
+  context: WebPartContext;
   msGraphClientFactory: MSGraphClientFactory;
 }
 
 export interface IOutlook2SharePointState {
   addinservice: AddinService;
-  isCompose?:boolean;
-  cats?:any[];
-  stats?:any[];
-  cases?:any[];
+  isCompose?: boolean;
+  cats?: any[];
+  stats?: any[];
+  cases?: any[];
+  loading?: boolean;
 }
 
 export default class Outlook2SharePoint extends React.Component<IOutlook2SharePointProps, IOutlook2SharePointState> {
@@ -29,36 +31,47 @@ export default class Outlook2SharePoint extends React.Component<IOutlook2SharePo
     this.state = {
       addinservice: null,
       isCompose: false,
-      cats:[],
-      stats:[],
-      cases:[]
+      cats: [],
+      stats: [],
+      cases: [],
+      loading: false
     };
 
-    this._addinservice = new AddinService(this.props.context,this.props.mail,this.props.msGraphClientFactory);
+    this._addinservice = new AddinService(this.props.context, this.props.mail, this.props.msGraphClientFactory);
   }
 
   public componentDidMount() {
+    this.setState({loading:true});
     let queryParms = new UrlQueryParameterCollection(window.location.href);
     let myParm: boolean = queryParms.getValue("isCompose") == "true" ? true : false;
     this.setState({ isCompose: myParm });
 
     this._addinservice.getCategories().then((dat) => {
-      this.setState({cats:dat});
+      this.setState({ cats: dat });
     });
 
-    this._addinservice.getCaseStatus().then((sdat)=>{
-      this.setState({stats:sdat});
+    this._addinservice.getCaseStatus().then((sdat) => {
+      this.setState({ stats: sdat });
     });
 
-    this._addinservice.getCases("Igangværende").then((cdat)=>{
-      this.setState({cases:cdat});
+    this._addinservice.getCases("Igangværende").then((cdat) => {
+      this.setState({ cases: cdat,loading:false });
     });
   }
 
   public render(): React.ReactElement<IOutlook2SharePointProps> {
-    const { isCompose,cats,stats,cases } = this.state;
+    const { isCompose, cats, stats, cases,loading } = this.state;
+    const spfxstyles = {
+      spinner: {
+        display: loading ? "block" : "none"
+      }
+    };
+    
     return (
       <div className="ms-Grid" dir="ltr">
+        <div style={spfxstyles.spinner}>
+          <Spinner label="Loading the Addin..." />
+        </div>
         <div className="ms-Grid-row">
           {isCompose ? <AddinCompose spservice={this._addinservice} categories={cats} stats={stats} cases={cases} /> : <AddinRead spservice={this._addinservice} categories={cats} stats={stats} cases={cases} />}
         </div>
