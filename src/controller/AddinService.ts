@@ -6,13 +6,24 @@ export class AddinService {
   private _spclient: SPHttpClient;
   private _graphclient:MSGraphClient;
   public _currentuser: SPUser;
-  public _weburl: string = 'https://cloudmission.sharepoint.com/sites/xRMLite/';
-  public _casefolderrelativepath: string = '/sites/xRMLite/CaseFiles';
-  public _caseid: string = 'b5fd8cf2-1277-4daa-9196-98a1b6d32401';
+  public _weburl: string = 'https://ankerhan.sharepoint.com/sites/Sager/';
+  public _casefolderrelativepath: string = '/sites/Sager/CaseFiles';
+  public _caseid: string = '32a64dc2-f7ef-4be0-b555-5d7c7c1a57be';
   public _statusid: string = '17216dcb-35ca-4675-8838-818ac63fdc30';
-  public _caselibraryid: string = '1915c903-0f25-4435-962a-3014eedfe2ef';
-  public _outlookemailsid: string = 'de692daf-26ef-4489-b83b-19f4fc83af27';
-  public _casedriveid:string='b!HQciseR9TEyvXyK7-eL2DEEg8eS76CtEmIrZT4djMw8DyRUZJQ81RJYqMBTu3-Lv';
+  public _caselibraryid: string = '2f5a0de2-55d3-4f05-a1fc-7e35d6fad5da';
+  public _outlookemailsid: string = '6f4a8255-ac2e-4acd-ad0b-5886a8a35865';
+  public _casedriveid:string='b!PDBGl16kuUSfD7ci8Pd9dMO5nQPkcrpBhY_Bobl8PRHiDVov01UFT6H8fjXW-tXa';
+  public _catid:string='fb1e18ad-29c3-4889-8b28-0c28e960de30';
+  
+  // public _weburl: string = 'https://cloudmission.sharepoint.com/sites/xRMLite/';
+  // public _casefolderrelativepath: string = '/sites/xRMLite/CaseFiles';
+  // public _caseid: string = 'b5fd8cf2-1277-4daa-9196-98a1b6d32401';
+  // public _statusid: string = '17216dcb-35ca-4675-8838-818ac63fdc30';
+  // public _caselibraryid: string = '1915c903-0f25-4435-962a-3014eedfe2ef';
+  // public _outlookemailsid: string = 'de692daf-26ef-4489-b83b-19f4fc83af27';
+  // public _casedriveid:string='b!HQciseR9TEyvXyK7-eL2DEEg8eS76CtEmIrZT4djMw8DyRUZJQ81RJYqMBTu3-Lv';
+  //public _catid:string='873475f3-0aeb-4ae9-b900-c27f5f8bfd0f';
+
   public _mail: any;
   private _mailmessage:string;
   public _mailsubject:string;
@@ -60,7 +71,7 @@ export class AddinService {
   }
 
   public getCategories(): Promise<any> {
-    const openticketsurl = `${this._weburl}_api/Web/Lists(guid'873475f3-0aeb-4ae9-b900-c27f5f8bfd0f')/Items?$select=ID,Title`;
+    const openticketsurl = `${this._weburl}_api/Web/Lists(guid'${this._catid}')/Items?$select=ID,Title`;
     const options: ISPHttpClientOptions = {
       headers: {
         "odata-version": "3.0",
@@ -196,11 +207,11 @@ export class AddinService {
         else { return Promise.reject(new Error(JSON.stringify(response))); }
       })
       .then((data: any) => {
-        //console.log("Service ", data.value);
+        console.log("Service ", data.value);
         let casetitle: string = '';
         //cats.push({})
         data.value.forEach(x => {
-          casetitle = x.Title;
+          casetitle = x.FileLeafRef;
         });
         return casetitle;
       }).catch((ex) => {
@@ -210,6 +221,7 @@ export class AddinService {
   }
   ///sites/xRMLite/_api/Web/GetFolderByServerRelativePath(decodedurl='/sites/xRMLite/CaseFiles/1')/Folders?&$select=Name
   public getCaseSubFolders(folderrelativepath?: string): Promise<any> {
+    debugger;
     const casefoldersurl = `${this._weburl}_api/Web/GetFolderByServerRelativePath(decodedurl='${this._casefolderrelativepath}/${folderrelativepath}')/Folders?&$select=Name`;
     const options: ISPHttpClientOptions = {
       headers: {
@@ -296,19 +308,27 @@ export class AddinService {
   // }
 
   public saveAttachments(folderpath:string):void{
-    let attachments:any[]=this._mail.attachments;
+    let attachments:any[]=[];
+    //console.log("attachments",attachments);
     const mailid=this._mail.itemId;
-    attachments.forEach((x)=>{
-      this._graphclient.api(`/me/messages/${mailid}/attachments/${x.id}`).get((error, response: any, rawResponse?: any) => {
-        const data = atob(response.contentBytes);
-        const array = Uint8Array.from(data, b => b.charCodeAt(0));
-        this._graphclient.api(`drives/${this._casedriveid}/root:/${folderpath}/${x.name}:/content`).put(array).then((result)=>{
-          console.log(result);
-          
-        }).catch((ex)=>{
-          console.log(ex);
+      this._graphclient.api(`/me/messages/${mailid}/attachments`).get((error, response: any, rawResponse?: any) => {
+        attachments=response.value;
+        console.log("attachments",attachments);
+        attachments.forEach((x,index)=>{
+          const data = atob(x.contentBytes);
+          const array = Uint8Array.from(data, b => b.charCodeAt(0));
+          this._graphclient.api(`drives/${this._casedriveid}/root:/${folderpath}/${x.name}:/content`).put(array).then((result)=>{
+            console.log("Sucess",result);
+            if(attachments.length==(index+1)){
+              Office.context.ui.closeContainer();
+            }
+          }).catch((ex)=>{
+            debugger;
+            console.log("Error",ex);
+          });
+          //console.log("Index ",index);
         });
-    });
+        
     });
   }
 

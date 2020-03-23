@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { AddinService } from '../../../controller/AddinService';
 import { Checkbox } from 'office-ui-fabric-react/lib/Checkbox';
-import { PrimaryButton } from 'office-ui-fabric-react';
+import { PrimaryButton, MessageBar, MessageBarType } from 'office-ui-fabric-react';
 import { Spinner } from 'office-ui-fabric-react/lib/Spinner';
 import { Label } from 'office-ui-fabric-react/lib/Label';
 import styles from './Outlook2SharePoint.module.scss';
 import { Dropdown, DropdownMenuItemType, IDropdownStyles, IDropdownOption, ResponsiveMode } from 'office-ui-fabric-react/lib/Dropdown';
+import { string } from 'prop-types';
 
 export interface IAddinReadProps {
   spservice: AddinService;
@@ -16,6 +17,7 @@ export interface IAddinReadProps {
 
 export interface IAddinReadState {
   isCatVisible: boolean;
+  localcases?: any[];
   drop1: any[];
   drop2: any[];
   drop3: any[];
@@ -26,7 +28,9 @@ export interface IAddinReadState {
   casechange: boolean;
   folderpath?: string;
   loading?: boolean;
-  spinnertxt?:string;
+  spinnertxt?: string;
+  isError: boolean;
+  errormessage: string;
 }
 
 const dropdownStyles: Partial<IDropdownStyles> = {
@@ -36,14 +40,14 @@ const dropdownStyles: Partial<IDropdownStyles> = {
 
 
 export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState> {
-  private _caseTitle: string;
-  private _caseid: string;
-  private _catid: string;
-  private _drop1: string;
-  private _drop2: string;
-  private _drop3: string;
-  private _drop4: string;
-  private _drop5: string;
+  private _caseTitle: string = "";
+  private _caseid: string = "";
+  private _catid: string = "";
+  private _drop1: string = "";
+  private _drop2: string = "";
+  private _drop3: string = "";
+  private _drop4: string = "";
+  private _drop5: string = "";
 
   constructor(props) {
     super(props);
@@ -54,16 +58,25 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
       drop3: [],
       drop4: [],
       drop5: [],
+      localcases: [],
       saveemail: false,
       saveattachment: false,
       casechange: false,
       loading: false,
-      spinnertxt:"Loading the Addin..."
+      spinnertxt: "Loading the Addin...",
+      isError: false,
+      errormessage: ""
     };
   }
 
+  // public componentDidMount(){
+  //   debugger;
+  //   const cas=this.props != undefined ? this.props.cases : [];
+  //   this.setState({localcases:cas});
+  // }
+
   public render(): React.ReactElement<IAddinReadProps> {
-    const { isCatVisible, drop1, drop2, drop3, drop4, drop5, saveattachment, saveemail, casechange, loading,spinnertxt } = this.state;
+    const { isCatVisible, drop1, drop2, drop3, drop4, drop5, saveattachment, saveemail, casechange, loading, spinnertxt, localcases, isError, errormessage } = this.state;
     const addinstyles = {
       catvisible: {
         display: isCatVisible ? "block" : "none"
@@ -99,20 +112,29 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
       },
       spinner: {
         display: loading ? "block" : "none"
+      },
+      errormessage: {
+        display: isError ? "block" : "none"
       }
     };
-
+    const cas = this.props != undefined ? this.props.cases : [];
+    //this.setState({localcases:cas});
     const catoptions: IDropdownOption[] = this.props != undefined ? this.props.categories : [];
-    const casoptions: IDropdownOption[] = this.props != undefined ? this.props.cases : [];
+    //const casoptions: IDropdownOption[] = this.props != undefined ? this.props.cases : [];
     const statoptions: IDropdownOption[] = this.props != undefined ? this.props.stats : [];
 
     return (
       <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-        <div>
-          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} defaultSelectedKey="Igangværende" />
+        <div style={addinstyles.errormessage}>
+          <MessageBar messageBarType={MessageBarType.error} >
+            {errormessage}
+          </MessageBar>
         </div>
         <div>
-          <Dropdown placeholder="Select an option" label="Sager" options={casoptions} responsiveMode={ResponsiveMode.large} onChange={this._casechange} />
+          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} defaultSelectedKey="Igangværende" onChange={this._statusChange} />
+        </div>
+        <div>
+          <Dropdown placeholder="Select an option" label="Sager" options={localcases.length > 0 ? localcases : cas} responsiveMode={ResponsiveMode.large} onChange={this._casechange} />
         </div>
         <div style={addinstyles.spinner}>
           <Spinner label={spinnertxt} />
@@ -151,14 +173,25 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
     );
   }
 
+  private _statusChange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
+    if (option.key != "-1") {
+      const { spservice } = this.props;
+      spservice.getCases(option.key.toString()).then((cases) => {
+        this.setState({ localcases: cases, casechange: false });
+      });
+    }
+
+  }
+
   private _casechange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
     if (option.key != "-1") {
-      this.setState({ isCatVisible: true, casechange: true,loading:true });
+      this.setState({ isCatVisible: true, casechange: true, loading: true });
       const { spservice } = this.props;
       this._caseid = option.key.toString();
       spservice.getCaseFolderTitle(option.key.toString()).then((tit) => {
+        console.log("Case Title", tit);
         spservice.getCaseSubFolders(tit).then((dat) => {
-          this.setState({ drop1: dat,loading:false });
+          this.setState({ drop1: dat, loading: false });
         });
         //this.setState({folderpath:`${tit}`});
         this._caseTitle = tit;
@@ -175,9 +208,9 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
   private _drop1Change = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
     this._drop1 = option.key.toString();
     if (this._drop1 != "-1") {
-      this.setState({loading:true});
+      this.setState({ loading: true });
       this.props.spservice.getCaseSubFolders(`${this._caseTitle}/${this._drop1}`).then((dat2) => {
-        this.setState({ drop2: dat2,loading:false });
+        this.setState({ drop2: dat2, loading: false });
       });
     }
   }
@@ -185,9 +218,9 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
   private _drop2Change = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
     this._drop2 = option.key.toString();
     if (this._drop2 != "-1") {
-      this.setState({loading:true});
+      this.setState({ loading: true });
       this.props.spservice.getCaseSubFolders(`${this._caseTitle}/${this._drop1}/${this._drop2}`).then((dat3) => {
-        this.setState({ drop3: dat3,loading:false });
+        this.setState({ drop3: dat3, loading: false });
       });
     }
   }
@@ -195,9 +228,9 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
   private _drop3Change = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
     this._drop3 = option.key.toString();
     if (this._drop3 != "-1") {
-      this.setState({loading:true});
+      this.setState({ loading: true });
       this.props.spservice.getCaseSubFolders(`${this._caseTitle}/${this._drop1}/${this._drop2}/${this._drop3}`).then((dat4) => {
-        this.setState({ drop4: dat4,loading:false });
+        this.setState({ drop4: dat4, loading: false });
       });
     }
   }
@@ -205,9 +238,9 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
   private _drop4Change = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
     this._drop4 = option.key.toString();
     if (this._drop4 != "-1") {
-      this.setState({loading:true});
+      this.setState({ loading: true });
       this.props.spservice.getCaseSubFolders(`${this._caseTitle}/${this._drop1}/${this._drop2}/${this._drop3}/${this._drop4}`).then((dat5) => {
-        this.setState({ drop5: dat5,loading:false });
+        this.setState({ drop5: dat5, loading: false });
       });
     }
   }
@@ -225,37 +258,39 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
   }
 
   private _onSaveClick = () => {
-    this.setState({loading:true,spinnertxt:"Saving the data..."});
-    const addinobj = {
-      catid: this._catid,
-      caseid: this._caseid
-    };
-    let folderpath = `${this._caseTitle}`;
-    if (this._drop1.length > 0 && this._drop1 != "-1") {
-      folderpath = `${folderpath}/${this._drop1}`;
-      if (this._drop2.length > 0 && this._drop2 != "-1") {
-        folderpath = `${folderpath}/${this._drop2}`;
-        if (this._drop3.length > 0 && this._drop3 != "-1") {
-          folderpath = `${folderpath}/${this._drop3}`;
-          if (this._drop4.length > 0 && this._drop4 != "-1") {
-            folderpath = `${folderpath}/${this._drop4}`;
-            if (this._drop5.length > 0 && this._drop5 != "-1") {
-              folderpath = `${folderpath}/${this._drop5}`;
+    if (this._catid.length > 0 && this._catid != "-1") {
+      this.setState({ loading: true, spinnertxt: "Saving the data...",isError:false,errormessage:"" });
+      const addinobj = {
+        catid: this._catid,
+        caseid: this._caseid
+      };
+      let folderpath = `${this._caseTitle}`;
+      if (this._drop1.length > 0 && this._drop1 != "-1") {
+        folderpath = `${folderpath}/${this._drop1}`;
+        if (this._drop2.length > 0 && this._drop2 != "-1") {
+          folderpath = `${folderpath}/${this._drop2}`;
+          if (this._drop3.length > 0 && this._drop3 != "-1") {
+            folderpath = `${folderpath}/${this._drop3}`;
+            if (this._drop4.length > 0 && this._drop4 != "-1") {
+              folderpath = `${folderpath}/${this._drop4}`;
+              if (this._drop5.length > 0 && this._drop5 != "-1") {
+                folderpath = `${folderpath}/${this._drop5}`;
+              }
             }
           }
         }
       }
-    }
 
-    console.log(folderpath);
-    this.props.spservice.saveemail(addinobj).then((dat) => {
-      console.log(dat);
-      this.setState({loading:false});
-      Office.context.ui.closeContainer();
-    });
-
-    if (this.state.saveattachment) {
-      this.props.spservice.saveAttachments(folderpath);
+      console.log(folderpath);
+      this.props.spservice.saveemail(addinobj).then((dat) => {
+        if (this.state.saveattachment) {
+          this.props.spservice.saveAttachments(folderpath);
+        }
+        this.setState({ loading: false });
+        //Office.context.ui.closeContainer();
+      });
+    }else{
+      this.setState({isError:true,errormessage:"Select a category before submitting"});
     }
   }
 

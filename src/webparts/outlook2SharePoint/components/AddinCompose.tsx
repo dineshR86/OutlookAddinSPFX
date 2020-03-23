@@ -2,7 +2,7 @@ import * as React from 'react';
 import { AddinService } from '../../../controller/AddinService';
 import styles from './Outlook2SharePoint.module.scss';
 import { Dropdown, DropdownMenuItemType, IDropdownStyles, IDropdownOption, ResponsiveMode } from 'office-ui-fabric-react/lib/Dropdown';
-import { PrimaryButton,MessageBar, MessageBarType } from 'office-ui-fabric-react';
+import { PrimaryButton, MessageBar, MessageBarType } from 'office-ui-fabric-react';
 
 export interface IAddinComposeProps {
   spservice: AddinService;
@@ -12,36 +12,38 @@ export interface IAddinComposeProps {
 }
 
 export interface IAddinComposeState {
-  isCatVisible:boolean;
-  casechange:boolean;
-  isError:boolean;
-  errormessage:string;
+  isCatVisible: boolean;
+  casechange: boolean;
+  isError: boolean;
+  errormessage: string;
+  localcases?: any[];
 }
 
 export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComposeState> {
-  private _caseid:string;
-  private _catid:string;
+  private _caseid: string = "";
+  private _catid: string = "";
 
   constructor(props) {
     super(props);
-    this.state={
-      isCatVisible:false,
-      casechange:false,
-      isError:false,
-      errormessage:""
+    this.state = {
+      isCatVisible: false,
+      casechange: false,
+      isError: false,
+      errormessage: "",
+      localcases: []
     };
   }
 
-  public componentDidMount(){
-    const {spservice}=this.props;
-    spservice._mail.subject.getAsync((result)=> {
-      spservice._mailsubject=result.value;
+  public componentDidMount() {
+    const { spservice } = this.props;
+    spservice._mail.subject.getAsync((result) => {
+      spservice._mailsubject = result.value;
     });
   }
 
   public render(): React.ReactElement<IAddinComposeProps> {
 
-    const {isCatVisible,isError,errormessage}=this.state;
+    const { isCatVisible, isError, errormessage, localcases } = this.state;
 
     const catoptions: IDropdownOption[] = this.props != undefined ? this.props.categories : [];
     const casoptions: IDropdownOption[] = this.props != undefined ? this.props.cases : [];
@@ -50,10 +52,10 @@ export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComp
     const addinstyles = {
       catvisible: {
         display: isCatVisible ? "block" : "none",
-        marginBottom:"20px",
+        marginBottom: "20px",
       },
-      errormessage:{
-        display:isError?"block":"none"
+      errormessage: {
+        display: isError ? "block" : "none"
       }
     };
 
@@ -61,44 +63,54 @@ export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComp
     return (
       <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
         <div style={addinstyles.errormessage}>
-        <MessageBar messageBarType={MessageBarType.error} >
-        {errormessage}
-        </MessageBar>
+          <MessageBar messageBarType={MessageBarType.error} >
+            {errormessage}
+          </MessageBar>
         </div>
         <div>
-          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} defaultSelectedKey="Igangværende" />
+          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} defaultSelectedKey="Igangværende" onChange={this._statusChange} />
         </div>
-        <div style={{marginTop:"20px"}}>
-          <Dropdown placeholder="Select an option" label="Sager" options={casoptions} responsiveMode={ResponsiveMode.large} onChange={this._casechange} />
+        <div style={{ marginTop: "20px" }}>
+          <Dropdown placeholder="Select an option" label="Sager" options={localcases.length > 0 ? localcases : casoptions} responsiveMode={ResponsiveMode.large} onChange={this._casechange} />
         </div>
         <div style={addinstyles.catvisible}>
-            <Dropdown placeholder="Select an option" label="Kategori" options={catoptions} responsiveMode={ResponsiveMode.large} onChange={this._catchange}/>
-           <PrimaryButton text="Gem" onClick={this._onSaveClick} style={{marginTop:"20px"}} />
+          <Dropdown placeholder="Select an option" label="Kategori" options={catoptions} responsiveMode={ResponsiveMode.large} onChange={this._catchange} />
+          <PrimaryButton text="Gem" onClick={this._onSaveClick} style={{ marginTop: "20px" }} />
         </div>
       </div>
     );
   }
 
+  private _statusChange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
+    if (option.key != "-1") {
+      const { spservice } = this.props;
+      spservice.getCases(option.key.toString()).then((cases) => {
+        this.setState({ localcases: cases, casechange: false });
+      });
+    }
+
+  }
+
   private _onSaveClick = () => {
-    if(this.props.spservice._mailsubject.length>0&&this._catid!="-1"){
-    this.props.spservice.composemail(`ID${this._caseid}, Cat${this._catid}`);
-  }
-  else{
-    this.setState({errormessage:"Please select category or subject is missing",isError:true});
-  }
+    if (this.props.spservice._mailsubject.length > 0 && this._catid != "-1" && this._catid.length > 0) {
+      this.props.spservice.composemail(`ID${this._caseid}, Cat${this._catid}`);
+    }
+    else {
+      this.setState({ errormessage: "Please select category or subject is missing", isError: true });
+    }
   }
 
   private _casechange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
-    this._caseid=option.key.toString();
+    this._caseid = option.key.toString();
     if (option.key.toString() != "-1") {
       this.setState({ isCatVisible: true });
-    }else{
+    } else {
       this.setState({ isCatVisible: false });
     }
   }
 
   private _catchange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
-    this._catid=option.key.toString();
+    this._catid = option.key.toString();
   }
 
 }
