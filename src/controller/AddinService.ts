@@ -1,4 +1,4 @@
-import { SPHttpClient, ISPHttpClientOptions, SPHttpClientResponse,MSGraphClient, MSGraphClientFactory } from '@microsoft/sp-http';
+import { SPHttpClient, ISPHttpClientOptions, SPHttpClientResponse,MSGraphClient, MSGraphClientFactory, ISPHttpClientBatchOptions } from '@microsoft/sp-http';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPUser } from "@microsoft/sp-page-context";
 
@@ -6,27 +6,30 @@ export class AddinService {
   private _spclient: SPHttpClient;
   private _graphclient:MSGraphClient;
   public _currentuser: SPUser;
-  public _weburl: string = 'https://ankerhan.sharepoint.com/sites/Sager/';
-  public _casefolderrelativepath: string = '/sites/Sager/CaseFiles';
-  public _caseid: string = '32a64dc2-f7ef-4be0-b555-5d7c7c1a57be';
-  public _statusid: string = '17216dcb-35ca-4675-8838-818ac63fdc30';
-  public _caselibraryid: string = '2f5a0de2-55d3-4f05-a1fc-7e35d6fad5da';
-  public _outlookemailsid: string = '6f4a8255-ac2e-4acd-ad0b-5886a8a35865';
-  public _casedriveid:string='b!PDBGl16kuUSfD7ci8Pd9dMO5nQPkcrpBhY_Bobl8PRHiDVov01UFT6H8fjXW-tXa';
-  public _catid:string='fb1e18ad-29c3-4889-8b28-0c28e960de30';
-  
-  // public _weburl: string = 'https://cloudmission.sharepoint.com/sites/xRMLite/';
-  // public _casefolderrelativepath: string = '/sites/xRMLite/CaseFiles';
-  // public _caseid: string = 'b5fd8cf2-1277-4daa-9196-98a1b6d32401';
+  public _defConfigData:any;
+  // public _weburl: string = 'https://ankerhan.sharepoint.com/sites/Sager/';
+  // public _casefolderrelativepath: string = '/sites/Sager/CaseFiles';
+  // public _caseid: string = '32a64dc2-f7ef-4be0-b555-5d7c7c1a57be';
   // public _statusid: string = '17216dcb-35ca-4675-8838-818ac63fdc30';
-  // public _caselibraryid: string = '1915c903-0f25-4435-962a-3014eedfe2ef';
-  // public _outlookemailsid: string = 'de692daf-26ef-4489-b83b-19f4fc83af27';
-  // public _casedriveid:string='b!HQciseR9TEyvXyK7-eL2DEEg8eS76CtEmIrZT4djMw8DyRUZJQ81RJYqMBTu3-Lv';
-  //public _catid:string='873475f3-0aeb-4ae9-b900-c27f5f8bfd0f';
+  // public _caselibraryid: string = '2f5a0de2-55d3-4f05-a1fc-7e35d6fad5da';
+  // public _outlookemailsid: string = '6f4a8255-ac2e-4acd-ad0b-5886a8a35865';
+  // public _casedriveid:string='b!PDBGl16kuUSfD7ci8Pd9dMO5nQPkcrpBhY_Bobl8PRHiDVov01UFT6H8fjXW-tXa';
+  // public _catid:string='fb1e18ad-29c3-4889-8b28-0c28e960de30';
+  
+  public _weburl: string = 'https://cloudmission.sharepoint.com/sites/xRMLite/';
+  public _casefolderrelativepath: string = '/sites/xRMLite/CaseFiles';
+  public _caseid: string = 'b5fd8cf2-1277-4daa-9196-98a1b6d32401';
+  public _statusid: string = '17216dcb-35ca-4675-8838-818ac63fdc30';
+  public _caselibraryid: string = '1915c903-0f25-4435-962a-3014eedfe2ef';
+  public _outlookemailsid: string = 'de692daf-26ef-4489-b83b-19f4fc83af27';
+  public _casedriveid:string='b!HQciseR9TEyvXyK7-eL2DEEg8eS76CtEmIrZT4djMw8DyRUZJQ81RJYqMBTu3-Lv';
+  public _catid:string='873475f3-0aeb-4ae9-b900-c27f5f8bfd0f';
+  public _addinconfig:string='ae886127-283d-4e43-92af-387766613759';
 
   public _mail: any;
   private _mailmessage:string;
   public _mailsubject:string;
+  public _mailbody:string;
   //private _graphclient:any;
 
   constructor(context: WebPartContext, mail: any,graphFactory:MSGraphClientFactory) {
@@ -36,12 +39,16 @@ export class AddinService {
     graphFactory.getClient().then((client:MSGraphClient)=>{
       this._graphclient=client;
     });
-    console.log("Email: ", this._mail);
+    // console.log("Current User: ", this._currentuser);
     mail.body.getAsync('text', (result)=> {
       if (result.status === 'succeeded') {
         this._mailmessage=result.value;
       }
     });
+    // this.getConfigData().then((dat)=>{
+    //   this._defConfigData=dat;
+    //   console.log("Config ",this._defConfigData);
+    // });
   }
 
   public getRootSite(): Promise<any> {
@@ -71,7 +78,7 @@ export class AddinService {
   }
 
   public getCategories(): Promise<any> {
-    const openticketsurl = `${this._weburl}_api/Web/Lists(guid'${this._catid}')/Items?$select=ID,Title`;
+    const catsurl = `${this._weburl}_api/Web/Lists(guid'${this._catid}')/Items?$select=ID,Title`;
     const options: ISPHttpClientOptions = {
       headers: {
         "odata-version": "3.0",
@@ -79,7 +86,7 @@ export class AddinService {
       },
       method: "GET"
     };
-    return this._spclient.get(openticketsurl, SPHttpClient.configurations.v1, options).then(
+    return this._spclient.get(catsurl, SPHttpClient.configurations.v1, options).then(
       (response: any) => {
         if (response.status >= 200 && response.status < 300) {
           return response.json();
@@ -172,7 +179,7 @@ export class AddinService {
         //console.log("Cases ", data.value);
         let cass: any[] = [];
         const def = {
-          key: "-1",
+          key: -1,
           text: "-Vælg-"
         };
         cass.push(def);
@@ -323,7 +330,6 @@ export class AddinService {
               Office.context.ui.closeContainer();
             }
           }).catch((ex)=>{
-            debugger;
             console.log("Error",ex);
           });
           //console.log("Index ",index);
@@ -345,39 +351,151 @@ export class AddinService {
       "displayName": "",
       "emailAddress": "ankerh@emails.itsm360cloud.net"
   }];
-      this._mail.subject.setAsync(`${this._mailsubject} ${addinid}`, (asyncResult) =>{
-        if (asyncResult.status === "failed") {
-          console.log("Action failed with error: " + asyncResult.error.message);
-      } else {
-          console.log("Action Subject appended");
-          this._mail.bcc.setAsync(mailRecepients, (result) =>{
-              if (result.error) {
-                  console.log(result.error);
-              } else {
-                  console.log("Recipients added to the bcc");
-                  Office.context.ui.closeContainer();
+
+    this._mail.body.getTypeAsync((result)=>{
+      if (result.status == Office.AsyncResultStatus.Failed){
+        console.log(result.error.message);
+    }else{
+      console.log("email type: ",result.value);
+      if (result.value == 'html'){
+        //this._mail.body.setSelectedDataAsync
+        this._mail.body.prependAsync(
+          `<div style="margin-left:90%;font-size:8px"><span hidden>###AHC REF ${addinid}###</span></div>`,
+          { coercionType: Office.CoercionType.Html, 
+          asyncContext: { var3: 1, var4: 2 } },
+          (asyncResult)=> {
+              if (asyncResult.status == 
+                  Office.AsyncResultStatus.Failed){
+                  console.log(asyncResult.error.message);
+              }
+              else {
+                this._mail.bcc.setAsync(mailRecepients, (bccresult) =>{
+                  if (bccresult.error) {
+                      console.log(bccresult.error);
+                  } else {
+                      console.log("Recipients added to the bcc");
+                      Office.context.ui.closeContainer();
+                  }
+      });
               }
           });
+      }else{
+       this._mail.body.prependAsync(
+        `###AHC REF ${addinid}###`,
+          { coercionType: Office.CoercionType.Text, 
+              asyncContext: { var3: 1, var4: 2 } },
+          (asyncResult) =>{
+              if (asyncResult.status == 
+                  Office.AsyncResultStatus.Failed){
+                  console.log(asyncResult.error.message);
+              }
+              else {
+                this._mail.bcc.setAsync(mailRecepients, (bccresult) =>{
+                  if (bccresult.error) {
+                      console.log(bccresult.error);
+                  } else {
+                      console.log("Recipients added to the bcc");
+                      Office.context.ui.closeContainer();
+                  }
+      });
+              }
+           });
       }
+    }
     });
     
     
   }
 
-  private base64ToBinary (base64EncodedFile) {
-    console.log("entry1");
-    var BASE64_MARKER = ';base64,';
-    var base64Index = base64EncodedFile.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
-    var base64 = base64EncodedFile.substring(base64Index);
-    var raw = atob(base64);
-    var rawLength = raw.length;
-    var array = new Uint8Array(rawLength);
+  public saveConfigData(configdat:any):Promise<any>{
+    const addinconfigobj = {
+      Title: configdat.case,
+      StatusID:configdat.status,
+      UsersMail:this._currentuser.email
+    };
+    console.log(addinconfigobj);
+    const addemailurl: string = `${this._weburl}_api/web/lists(guid'${this._addinconfig}')/items`;
+    const httpclientoptions: ISPHttpClientOptions = {
+      body: JSON.stringify(addinconfigobj)
+    };
 
-    for (let i = 0; i < rawLength; i++)
-    {
-        array[i] = raw.charCodeAt(i);
-    }
-    return array.buffer;
-}
+    return this._spclient.post(addemailurl, SPHttpClient.configurations.v1, httpclientoptions)
+      .then((response: SPHttpClientResponse) => {
+        if (response.status >= 200 && response.status < 300) {
+          return response.status;
+        }
+        else { return Promise.reject(new Error(JSON.stringify(response))); }
+      });
+  }
+
+  public updateConfigData(configdat:any,configid:string):Promise<any>{
+    const updateurl=`${this._weburl}_api/web/lists(guid'${this._addinconfig}')/items(${configid})`;
+        const getetagurl=`${this._weburl}_api/web/lists(guid'${this._addinconfig}')/items(${configid})?$select=Id`;
+        let etag: string = undefined;
+        return this._spclient.get(getetagurl,SPHttpClient.configurations.v1,{
+            headers: {
+              'Accept': 'application/json;odata=nometadata',
+              'odata-version': ''
+            }
+          }).then((response:SPHttpClientResponse)=>{
+            etag=response.headers.get("ETag");
+            return response.json().then((rdata)=>{
+                const body:string=JSON.stringify({
+                  Title: configdat.case,
+                  StatusID:configdat.status
+                  });
+                 const data:ISPHttpClientBatchOptions={
+                    headers:{
+                        "Accept":"application/json",
+                        "Content-Type":"application/json",
+                        "odata-version": "",
+                        "IF-MATCH": etag,
+                        "X-HTTP-Method": "MERGE"
+                    },
+                    body:body
+                 };
+                 return this._spclient.post(updateurl,SPHttpClient.configurations.v1,data).then((postresponse:SPHttpClientResponse)=>{
+                    return postresponse;
+                 });
+            });
+            
+          }).catch((ex) => {
+                console.log("Error while updating status: ", ex);
+                throw ex;
+            });
+  }
+
+  public getConfigData():Promise<any>{
+    const _curemail=this._currentuser.email;
+    const openticketsurl = `${this._weburl}_api/Web/Lists(guid'${this._addinconfig}')/Items?$select=ID,Title,StatusID,UsersMail&$filter=UsersMail eq '${_curemail}'`;
+    const options: ISPHttpClientOptions = {
+      headers: {
+        "odata-version": "3.0",
+        "accept": "application/json;odata=nometadata"
+      },
+      method: "GET"
+    };
+    return this._spclient.get(openticketsurl, SPHttpClient.configurations.v1, options).then(
+      (response: any) => {
+        if (response.status >= 200 && response.status < 300) {
+          return response.json();
+        }
+        else { return Promise.reject(new Error(JSON.stringify(response))); }
+      })
+      .then((data: any) => {
+        let configdata:any;
+        data.value.forEach(x => {
+          configdata={
+            Case:x.Title,
+            Status:x.StatusID,
+            ID:x.ID
+          };
+        });
+        return configdata;
+      }).catch((ex) => {
+        console.log("Error while fetching My tickets count: ", ex);
+        throw ex;
+      });
+  }
 
 }

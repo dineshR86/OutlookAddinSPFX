@@ -17,6 +17,8 @@ export interface IAddinComposeState {
   isError: boolean;
   errormessage: string;
   localcases?: any[];
+  defStatus: string;
+  defCase: number;
 }
 
 export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComposeState> {
@@ -30,7 +32,9 @@ export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComp
       casechange: false,
       isError: false,
       errormessage: "",
-      localcases: []
+      localcases: [],
+      defStatus: "Igangværende",
+      defCase: -1
     };
   }
 
@@ -39,11 +43,28 @@ export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComp
     spservice._mail.subject.getAsync((result) => {
       spservice._mailsubject = result.value;
     });
+    spservice.getConfigData().then((configObj) => {
+      if (typeof configObj != "undefined") {
+        spservice._defConfigData = configObj;
+        this.setState({ defCase: Number(configObj.Case), defStatus: configObj.Status });
+        spservice.getCases(configObj.Status).then((cases) => {
+          this.setState({ localcases: cases, casechange: false });
+        });
+        this.setState({ isCatVisible: true });
+        this._caseid = configObj.Case.toString();
+      }
+    });
+
+    // spservice._mail.body.getAsync('text', (result)=> {
+    //   if (result.status === 'succeeded') {
+    //     spservice._mailbody=result.value;
+    //   }
+    // });
   }
 
   public render(): React.ReactElement<IAddinComposeProps> {
 
-    const { isCatVisible, isError, errormessage, localcases } = this.state;
+    const { isCatVisible, isError, errormessage, localcases,defCase,defStatus } = this.state;
 
     const catoptions: IDropdownOption[] = this.props != undefined ? this.props.categories : [];
     const casoptions: IDropdownOption[] = this.props != undefined ? this.props.cases : [];
@@ -68,10 +89,10 @@ export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComp
           </MessageBar>
         </div>
         <div>
-          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} defaultSelectedKey="Igangværende" onChange={this._statusChange} />
+          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} selectedKey={defStatus} onChange={this._statusChange} />
         </div>
-        <div style={{ marginTop: "20px" }}>
-          <Dropdown placeholder="Select an option" label="Sager" options={localcases.length > 0 ? localcases : casoptions} responsiveMode={ResponsiveMode.large} onChange={this._casechange} />
+        <div style={{ marginTop: "5px" }}>
+          <Dropdown placeholder="Select an option" label="Sager" options={localcases.length > 0 ? localcases : casoptions} responsiveMode={ResponsiveMode.large} selectedKey={defCase} onChange={this._casechange} />
         </div>
         <div style={addinstyles.catvisible}>
           <Dropdown placeholder="Select an option" label="Kategori" options={catoptions} responsiveMode={ResponsiveMode.large} onChange={this._catchange} />
@@ -92,8 +113,8 @@ export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComp
   }
 
   private _onSaveClick = () => {
-    if (this.props.spservice._mailsubject.length > 0 && this._catid != "-1" && this._catid.length > 0) {
-      this.props.spservice.composemail(`ID${this._caseid}, Cat${this._catid}`);
+    if (this._catid != "-1" && this._catid.length > 0) {
+      this.props.spservice.composemail(`ID${this._caseid}- Cat${this._catid}`);
     }
     else {
       this.setState({ errormessage: "Please select category or subject is missing", isError: true });

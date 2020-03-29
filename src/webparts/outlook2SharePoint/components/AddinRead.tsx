@@ -6,7 +6,7 @@ import { Spinner } from 'office-ui-fabric-react/lib/Spinner';
 import { Label } from 'office-ui-fabric-react/lib/Label';
 import styles from './Outlook2SharePoint.module.scss';
 import { Dropdown, DropdownMenuItemType, IDropdownStyles, IDropdownOption, ResponsiveMode } from 'office-ui-fabric-react/lib/Dropdown';
-import { string } from 'prop-types';
+import { string, number } from 'prop-types';
 
 export interface IAddinReadProps {
   spservice: AddinService;
@@ -31,6 +31,8 @@ export interface IAddinReadState {
   spinnertxt?: string;
   isError: boolean;
   errormessage: string;
+  defStatus: string;
+  defCase: number;
 }
 
 const dropdownStyles: Partial<IDropdownStyles> = {
@@ -65,18 +67,37 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
       loading: false,
       spinnertxt: "Loading the Addin...",
       isError: false,
-      errormessage: ""
+      errormessage: "",
+      defStatus: "Igangværende",
+      defCase: -1
     };
   }
 
-  // public componentDidMount(){
-  //   debugger;
-  //   const cas=this.props != undefined ? this.props.cases : [];
-  //   this.setState({localcases:cas});
-  // }
+  public componentDidMount() {
+    const spservice = this.props.spservice;
+      spservice.getConfigData().then((configObj) => {
+      if(typeof configObj !="undefined"){
+        spservice._defConfigData=configObj;
+        this.setState({ defCase: Number(configObj.Case), defStatus: configObj.Status });
+        spservice.getCases(configObj.Status).then((cases) => {
+          this.setState({ localcases: cases });
+        });
+        this.setState({ isCatVisible: true, casechange: true, loading: true });
+        this._caseid = configObj.Case.toString();
+        spservice.getCaseFolderTitle(this._caseid).then((tit) => {
+          //console.log("Case Title", tit);
+          spservice.getCaseSubFolders(tit).then((dat) => {
+            this.setState({ drop1: dat, loading: false });
+          });
+          this._caseTitle = tit;
+        });
+      }
+      });
+
+  }
 
   public render(): React.ReactElement<IAddinReadProps> {
-    const { isCatVisible, drop1, drop2, drop3, drop4, drop5, saveattachment, saveemail, casechange, loading, spinnertxt, localcases, isError, errormessage } = this.state;
+    const { isCatVisible, drop1, drop2, drop3, drop4, drop5, saveattachment, saveemail, casechange, loading, spinnertxt, localcases, isError, errormessage, defCase, defStatus } = this.state;
     const addinstyles = {
       catvisible: {
         display: isCatVisible ? "block" : "none"
@@ -118,9 +139,7 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
       }
     };
     const cas = this.props != undefined ? this.props.cases : [];
-    //this.setState({localcases:cas});
     const catoptions: IDropdownOption[] = this.props != undefined ? this.props.categories : [];
-    //const casoptions: IDropdownOption[] = this.props != undefined ? this.props.cases : [];
     const statoptions: IDropdownOption[] = this.props != undefined ? this.props.stats : [];
 
     return (
@@ -131,23 +150,23 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
           </MessageBar>
         </div>
         <div>
-          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} defaultSelectedKey="Igangværende" onChange={this._statusChange} />
+          <Dropdown placeholder="Select an option" label="Status" options={statoptions} responsiveMode={ResponsiveMode.large} selectedKey={defStatus} onChange={this._statusChange} />
         </div>
         <div>
-          <Dropdown placeholder="Select an option" label="Sager" options={localcases.length > 0 ? localcases : cas} responsiveMode={ResponsiveMode.large} onChange={this._casechange} />
+          <Dropdown placeholder="Select an option" label="Sager" options={localcases.length > 0 ? localcases : cas} responsiveMode={ResponsiveMode.large} selectedKey={defCase} onChange={this._casechange} />
         </div>
         <div style={addinstyles.spinner}>
           <Spinner label={spinnertxt} />
         </div>
         <div style={addinstyles.caseChange}>
-          <div style={{ marginTop: "20px" }}>
+          <div style={{ marginTop: "10px" }}>
             <Checkbox label="Gem Email" onChange={this._saveemail} defaultChecked />
 
             <div style={addinstyles.catvisible}>
               <Dropdown placeholder="Select an option" label="Kategori" options={catoptions} responsiveMode={ResponsiveMode.large} onChange={this._catchange} />
             </div>
           </div>
-          <div style={{ marginTop: "20px", marginBottom: "20px" }}>
+          <div style={{ marginTop: "10px", marginBottom: "10px" }}>
             <Checkbox label="Gem Vedhæftning(er)" onChange={this._saveattachment} />
             <div style={addinstyles.saveattachment}>
               <div style={addinstyles.drop1}>
@@ -176,8 +195,9 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
   private _statusChange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
     if (option.key != "-1") {
       const { spservice } = this.props;
+      this.setState({defStatus:option.key.toString()});
       spservice.getCases(option.key.toString()).then((cases) => {
-        this.setState({ localcases: cases, casechange: false });
+        this.setState({ localcases: cases, casechange: false,defCase:-1 });
       });
     }
 
@@ -185,7 +205,7 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
 
   private _casechange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => {
     if (option.key != "-1") {
-      this.setState({ isCatVisible: true, casechange: true, loading: true });
+      this.setState({ isCatVisible: true, casechange: true, loading: true,defCase:Number(option.key) });
       const { spservice } = this.props;
       this._caseid = option.key.toString();
       spservice.getCaseFolderTitle(option.key.toString()).then((tit) => {
@@ -259,7 +279,7 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
 
   private _onSaveClick = () => {
     if (this._catid.length > 0 && this._catid != "-1") {
-      this.setState({ loading: true, spinnertxt: "Saving the data...",isError:false,errormessage:"" });
+      this.setState({ loading: true, spinnertxt: "Saving the data...", isError: false, errormessage: "" });
       const addinobj = {
         catid: this._catid,
         caseid: this._caseid
@@ -289,8 +309,8 @@ export class AddinRead extends React.Component<IAddinReadProps, IAddinReadState>
         this.setState({ loading: false });
         //Office.context.ui.closeContainer();
       });
-    }else{
-      this.setState({isError:true,errormessage:"Select a category before submitting"});
+    } else {
+      this.setState({ isError: true, errormessage: "Select a category before submitting" });
     }
   }
 
