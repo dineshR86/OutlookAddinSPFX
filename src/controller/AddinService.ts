@@ -360,7 +360,7 @@ export class AddinService {
       if (result.value == 'html'){
         //this._mail.body.setSelectedDataAsync
         this._mail.body.prependAsync(
-          `<div style="margin-left:90%;font-size:8px"><span hidden>###AHC REF ${addinid}###</span></div>`,
+          `<div style="margin-left:90%;font-size:8px"><span hidden>###AHC-REF-${addinid}###</span></div>`,
           { coercionType: Office.CoercionType.Html, 
           asyncContext: { var3: 1, var4: 2 } },
           (asyncResult)=> {

@@ -114,7 +114,7 @@ export class AddinCompose extends React.Component<IAddinComposeProps, IAddinComp
 
   private _onSaveClick = () => {
     if (this._catid != "-1" && this._catid.length > 0) {
-      this.props.spservice.composemail(`ID${this._caseid}- Cat${this._catid}`);
+      this.props.spservice.composemail(`ID${this._caseid}-Cat${this._catid}`);
     }
     else {
       this.setState({ errormessage: "Please select category or subject is missing", isError: true });
